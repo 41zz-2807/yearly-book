@@ -1,0 +1,78 @@
+// Skema data yearly-book.
+// Database: SQLite (file-based, disimpan di Docker volume, bukan di host).
+//
+// Catatan tipe data:
+//  - SQLite tidak punya tipe kolom native, semua String -> TEXT, Int -> INTEGER.
+//  - Field teks panjang (sambutan/penutup/suratMasaDepan) tetap `String`;
+//    SQLite tidak membatasi panjang TEXT, jadi tidak perlu @db.Text.
+//  - Field foto/URL dibuat opsional (?) karena boleh diisi belakangan.
+//  - Field `urutan` dipakai untuk pengurutan tampilan dan diberi index.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Baris tunggal yang menyimpan identitas utama buku annual.
+/// Aksesor client: prisma.setting
+model Setting {
+  id        Int     @id @default(autoincrement())
+  namaKelas String
+  sekolah   String
+  angkatan  Int
+  tahun     Int
+  sambutan  String
+  penutup   String
+  fotoKelas String?
+
+  @@index([tahun])
+}
+
+/// Siswa kelas. Diurutkan berdasarkan `urutan` (menaik).
+model Siswa {
+  id             Int     @id @default(autoincrement())
+  nama           String
+  citaCita       String?
+  pesan          String?
+  suratMasaDepan String?
+  foto           String?
+  urutan         Int     @default(0)
+
+  @@index([urutan])
+}
+
+/// Galeri foto kegiatan. Diurutkan berdasarkan `urutan` (menaik).
+/// `url` opsional supaya entri bisa dibuat lebih dulu (caption + urutan)
+/// lalu gambarnya diunggah belakangan lewat /admin. Kalau null, halaman
+/// menampilkan placeholder berornamen, bukan gambar rusak.
+model FotoKegiatan {
+  id      Int     @id @default(autoincrement())
+  url     String?
+  caption String?
+  urutan  Int     @default(0)
+
+  @@index([urutan])
+}
+
+/// Guru wali kelas.
+model WaliKelas {
+  id    Int     @id @default(autoincrement())
+  nama  String
+  foto  String?
+  pesan String?
+}
+
+/// Daftar prestasi kelas. Diurutkan berdasarkan `urutan` (menaik).
+model Prestasi {
+  id        Int     @id @default(autoincrement())
+  judul     String
+  deskripsi String?
+  foto      String?
+  urutan    Int     @default(0)
+
+  @@index([urutan])
+}

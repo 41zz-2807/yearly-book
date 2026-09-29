@@ -1,0 +1,104 @@
+services:
+  # =============================================================================
+  #  DEV — default. Hot reload, source di-bind-mount dari host,
+  #  node_modules & .next memakai named volume supaya rebuild cepat.
+  #  Database SQLite disimpan di named volume `db_data` (path /data),
+  #  sehingga file .db tidak pernah tersimpan di host.
+  #  Host: http://localhost:8003
+  #
+  #  `docker compose up --build` sudah cukup: CMD (scripts/dev-start.sh)
+  #  menerapkan migrasi, menyiapkan Prisma Client, dan memuat data contoh bila
+  #  database baru. Tidak ada langkah migrate/seed terpisah.
+  # =============================================================================
+  app:
+    container_name: yearly-book-dev
+    build:
+      context: .
+      target: development
+    ports:
+      - "8003:3000"
+    env_file:
+      # `required: false` supaya instalasi baru yang belum punya .env tetap bisa
+      # dijalankan. Yang kosong akan diisi otomatis oleh scripts/dev-start.sh,
+      # lalu ditulis balik ke .env agar container berikutnya konsisten.
+      - path: .env
+        required: false
+    volumes:
+      # source code dari host (baca/tulis, uid host 1000 == uid user node)
+      - .:/app
+      # cache dependency & build, JANGAN di-bind mount dari host
+      - node_modules:/app/node_modules
+      - next_data:/app/.next
+      # database SQLite
+      - db_data:/data
+      # foto hasil upload (bukan bind mount, supaya tidak menumpuk di host
+      # dan tetap ada setelah container di-recreate)
+      - uploads:/app/public/uploads
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+      # file watcher polling (wajib di Docker, esp. bind mount)
+      WATCHPACK_POLLING: "true"
+      WATCHPACK_POLLING_TIMEOUT: "2000"
+      CHOKIDAR_USEPOLLING: "true"
+      TZ: Asia/Jakarta
+    init: true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # =============================================================================
+  #  MIGRATE — sekali jalan, menerapkan migrasi lalu generate Prisma Client.
+  #  Dijalankan manual:  docker compose run --rm migrate
+  # =============================================================================
+  migrate:
+    container_name: yearly-book-migrate
+    build:
+      context: .
+      target: development
+    profiles:
+      - tools
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - db_data:/data
+    environment:
+      NODE_ENV: development
+      PRISMA_SKIP_POSTINSTALL_GENERATE: "1"
+    command: >
+      sh -c "npm run db:deploy && npm run db:generate"
+
+  # =============================================================================
+  #  PROD — image standalone minimal. Jalankan dengan:
+  #      docker compose --profile prod up -d --build
+  #  Jalankan migrasi DULUAN: docker compose run --rm migrate
+  # =============================================================================
+  app-prod:
+    container_name: yearly-book-prod
+    profiles:
+      - prod
+    build:
+      context: .
+      target: runner
+    ports:
+      - "8003:3000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - db_data:/data
+      - uploads:/app/public/uploads
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      TZ: Asia/Jakarta
+    restart: unless-stopped
+
+volumes:
+  node_modules:
+  next_data:
+  db_data:
+  uploads:

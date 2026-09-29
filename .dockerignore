@@ -1,0 +1,33 @@
+# WAJIB: jangan pernah copy ini ke image, akan menimpa hasil npm ci
+node_modules
+.next
+out
+build
+
+# prisma: db hanya ada di dalam docker volume, tidak boleh ikut ter-copy
+prisma/*.db
+prisma/*.db-journal
+prisma/*.db-shm
+prisma/*.db-wal
+
+# tidak dipakai di dalam build
+.git
+.gitignore
+.vscode
+.idea
+README.md
+
+# docker files sendiri
+Dockerfile
+Dockerfile.*
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+
+# env & log
+.env
+.env*.local
+npm-debug.log*
+*.tsbuildinfo
+
+.DS_Store
